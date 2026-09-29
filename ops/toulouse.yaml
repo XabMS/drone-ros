@@ -1,0 +1,14 @@
+# Configuración de operación — Toulouse (DOC-06 F-01, AR-019)
+# Hub PROVISIONAL en el centro de Toulouse: sustituir por el terreno de aeromodelismo de Blagnac.
+# Las zonas del GeoJSON son ILUSTRATIVAS: no representan espacio aéreo real (consultar Geoportail / ENAIRE).
+city: toulouse
+version: "0.1"
+hub:
+  name: "Hub toulouse (PROVISIONAL)"
+  lat: 43.6045
+  lon: 1.444
+  alt_m: 150.0
+limits:
+  max_height_agl_m: 120
+  max_route_m: 11000        # ida + vuelta: objetivo de sistema de 5 km de radio (ADR-009)
+geojson: toulouse.geojson

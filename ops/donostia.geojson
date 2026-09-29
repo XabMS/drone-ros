@@ -1,0 +1,193 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "operational_volume",
+    "max_alt_m": 120
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -2.0432,
+       43.2733
+      ],
+      [
+       -1.9192,
+       43.2733
+      ],
+      [
+       -1.9192,
+       43.3633
+      ],
+      [
+       -2.0432,
+       43.3633
+      ],
+      [
+       -2.0432,
+       43.2733
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "contingency_volume"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -2.0502,
+       43.2683
+      ],
+      [
+       -1.9122,
+       43.2683
+      ],
+      [
+       -1.9122,
+       43.3683
+      ],
+      [
+       -2.0502,
+       43.3683
+      ],
+      [
+       -2.0502,
+       43.2683
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "corridor",
+    "id": "dss_c_centro",
+    "width_m": 80
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      -1.9812,
+      43.3183
+     ],
+     [
+      -1.974,
+      43.323
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "drop_zone",
+    "id": "dss_dz_01",
+    "radius_m": 10,
+    "drop_alt_min_m": 15,
+    "drop_alt_max_m": 30
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.974,
+     43.323
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "no_fly",
+    "id": "dss_nf_ejemplo"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -1.99,
+       43.31
+      ],
+      [
+       -1.985,
+       43.31
+      ],
+      [
+       -1.985,
+       43.313
+      ],
+      [
+       -1.99,
+       43.313
+      ],
+      [
+       -1.99,
+       43.31
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "authorization_zone",
+    "id": "dss_auth_ejemplo",
+    "authority": "Ejemplo de zona con autorizaci\u00f3n"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -2.0432,
+       43.345
+      ],
+      [
+       -2.0,
+       43.345
+      ],
+      [
+       -2.0,
+       43.3633
+      ],
+      [
+       -2.0432,
+       43.3633
+      ],
+      [
+       -2.0432,
+       43.345
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "emergency_landing",
+    "id": "dss_ep_01"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -1.98,
+     43.315
+    ]
+   }
+  }
+ ]
+}

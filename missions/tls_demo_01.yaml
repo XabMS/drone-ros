@@ -1,0 +1,8 @@
+# Misión de demostración en Toulouse (hito S2): hub -> norte -> zona tls_dz_01 -> regreso (RTL).
+id: tls_demo_01
+city: toulouse
+drop_zone: tls_dz_01
+cruise_alt_m: 60
+payload_kg: 1.0
+route:
+  - {lat: 43.6100, lon: 1.4440}

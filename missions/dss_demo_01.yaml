@@ -1,0 +1,6 @@
+# Misión de demostración en Donostia (SIM-20): hub -> zona dss_dz_01 en línea recta -> regreso.
+id: dss_demo_01
+city: donostia
+drop_zone: dss_dz_01
+cruise_alt_m: 50
+payload_kg: 0.8

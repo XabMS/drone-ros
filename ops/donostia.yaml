@@ -1,0 +1,14 @@
+# Configuración de operación — Donostia (DOC-06 F-01, AR-019)
+# Hub PROVISIONAL en el centro de Donostia.
+# Las zonas del GeoJSON son ILUSTRATIVAS: no representan espacio aéreo real (consultar Geoportail / ENAIRE).
+city: donostia
+version: "0.1"
+hub:
+  name: "Hub donostia (PROVISIONAL)"
+  lat: 43.3183
+  lon: -1.9812
+  alt_m: 10.0
+limits:
+  max_height_agl_m: 120
+  max_route_m: 11000        # ida + vuelta: objetivo de sistema de 5 km de radio (ADR-009)
+geojson: donostia.geojson

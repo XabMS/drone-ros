@@ -1,0 +1,197 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "operational_volume",
+    "max_alt_m": 120
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.374,
+       43.5545
+      ],
+      [
+       1.514,
+       43.5545
+      ],
+      [
+       1.514,
+       43.6545
+      ],
+      [
+       1.374,
+       43.6545
+      ],
+      [
+       1.374,
+       43.5545
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "contingency_volume"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.367,
+       43.5495
+      ],
+      [
+       1.521,
+       43.5495
+      ],
+      [
+       1.521,
+       43.6595
+      ],
+      [
+       1.367,
+       43.6595
+      ],
+      [
+       1.367,
+       43.5495
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "corridor",
+    "id": "tls_c_norte",
+    "width_m": 80
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      1.444,
+      43.6045
+     ],
+     [
+      1.444,
+      43.61
+     ],
+     [
+      1.455,
+      43.612
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "drop_zone",
+    "id": "tls_dz_01",
+    "radius_m": 10,
+    "drop_alt_min_m": 15,
+    "drop_alt_max_m": 30
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     1.455,
+     43.612
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "no_fly",
+    "id": "tls_nf_ejemplo"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.45,
+       43.598
+      ],
+      [
+       1.456,
+       43.598
+      ],
+      [
+       1.456,
+       43.601
+      ],
+      [
+       1.45,
+       43.601
+      ],
+      [
+       1.45,
+       43.598
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "authorization_zone",
+    "id": "tls_auth_ejemplo",
+    "authority": "Ejemplo de zona con autorizaci\u00f3n (no es la CTR real de Blagnac)"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.374,
+       43.63
+      ],
+      [
+       1.41,
+       43.63
+      ],
+      [
+       1.41,
+       43.6545
+      ],
+      [
+       1.374,
+       43.6545
+      ],
+      [
+       1.374,
+       43.63
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "emergency_landing",
+    "id": "tls_ep_01"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     1.44,
+     43.6
+    ]
+   }
+  }
+ ]
+}
