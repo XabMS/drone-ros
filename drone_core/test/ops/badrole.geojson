@@ -1,0 +1,211 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "operational_volume",
+    "max_alt_m": 120
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.429,
+       43.5945
+      ],
+      [
+       1.459,
+       43.5945
+      ],
+      [
+       1.459,
+       43.6145
+      ],
+      [
+       1.429,
+       43.6145
+      ],
+      [
+       1.429,
+       43.5945
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "contingency_volume"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.426,
+       43.5925
+      ],
+      [
+       1.462,
+       43.5925
+      ],
+      [
+       1.462,
+       43.6165
+      ],
+      [
+       1.426,
+       43.6165
+      ],
+      [
+       1.426,
+       43.5925
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "corridor",
+    "id": "c_norte",
+    "width_m": 60
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      1.444,
+      43.6045
+     ],
+     [
+      1.444,
+      43.608
+     ],
+     [
+      1.45,
+      43.61
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "drop_zone",
+    "id": "dz_01",
+    "radius_m": 10,
+    "drop_alt_min_m": 15,
+    "drop_alt_max_m": 30
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     1.45,
+     43.61
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "no_fly",
+    "id": "nf_hospital"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.448,
+       43.604
+      ],
+      [
+       1.45,
+       43.604
+      ],
+      [
+       1.45,
+       43.606
+      ],
+      [
+       1.448,
+       43.606
+      ],
+      [
+       1.448,
+       43.604
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "authorization_zone",
+    "id": "ctr_test",
+    "authority": "ATC ficticio"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       1.429,
+       43.608
+      ],
+      [
+       1.44,
+       43.608
+      ],
+      [
+       1.44,
+       43.6145
+      ],
+      [
+       1.429,
+       43.6145
+      ],
+      [
+       1.429,
+       43.608
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "emergency_landing",
+    "id": "ep_01"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     1.44,
+     43.6
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "role": "helipuerto",
+    "id": "x"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     1.44,
+     43.6
+    ]
+   }
+  }
+ ]
+}

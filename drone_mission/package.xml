@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drone_mission</name>
+  <version>0.1.0</version>
+  <description>Gestión de misión (hito S2): config_manager y mission_manager con la máquina de estados del ConOps §5.</description>
+  <maintainer email="64962381+XabMS@users.noreply.github.com">Xabi</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
+  <depend>px4_msgs</depend>
+  <depend>drone_interfaces</depend>
+  <depend>drone_core</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

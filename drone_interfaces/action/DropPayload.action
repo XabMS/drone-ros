@@ -1,0 +1,14 @@
+# R-02 /drone/payload/drop — secuencia de suelta (payload_manager, hito S3).
+string drop_zone_id
+---
+uint8 RESULT_RELEASED = 1
+uint8 RESULT_DENIED = 2
+uint8 RESULT_TIMEOUT = 3
+uint8 RESULT_NOT_RELEASED = 4
+uint8 result
+string message
+---
+uint8 PHASE_WAITING_CONFIRMATION = 1
+uint8 PHASE_RELEASING = 2
+uint8 PHASE_VERIFYING = 3
+uint8 phase

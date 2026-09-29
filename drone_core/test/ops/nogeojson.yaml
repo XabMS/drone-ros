@@ -1,0 +1,11 @@
+# Ciudad ficticia para los tests de drone_core
+city: nogeojson
+version: "test-1"
+hub:
+  name: "Hub de prueba"
+  lat: 43.6045
+  lon: 1.4440
+  alt_m: 150.0
+limits:
+  max_height_agl_m: 120
+  max_route_m: 10000

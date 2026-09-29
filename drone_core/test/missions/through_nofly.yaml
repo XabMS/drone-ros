@@ -1,0 +1,7 @@
+id: through_nofly
+city: testville
+drop_zone: dz_01
+cruise_alt_m: 60
+payload_kg: 0.5
+route:
+  - {lat: 43.6050, lon: 1.4490}

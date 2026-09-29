@@ -1,0 +1,7 @@
+# Órdenes a mission_manager (~/command).
+uint8 START = 1     # Inicia la misión cargada si el prevuelo está completo
+uint8 ABORT = 2     # Aborta y ordena regreso al hub
+uint8 command
+---
+bool accepted
+string message
