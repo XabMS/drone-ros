@@ -1,0 +1,56 @@
+name: Problema o cambio
+description: Informe de problema o petición de cambio (DOC-09 §5). Todo cambio en un elemento CC1 empieza aquí.
+title: "[Cambio] "
+body:
+  - type: dropdown
+    id: control
+    attributes:
+      label: Nivel de control
+      description: CC1 = control completo (baseline y cambios con informe); CC2 = versionado sin proceso formal.
+      options:
+        - CC1
+        - CC2
+    validations:
+      required: true
+  - type: dropdown
+    id: dal
+    attributes:
+      label: DAL
+      options:
+        - A
+        - B
+        - C
+        - D
+        - Sin DAL
+    validations:
+      required: true
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+      description: Qué problema se ha detectado o qué cambio se pide, y dónde.
+    validations:
+      required: true
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Análisis de impacto
+      description: Requisitos afectados, seguridad (FHA/FTA) y pruebas afectadas.
+      placeholder: |
+        Requisitos:
+        Seguridad:
+        Pruebas:
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decisión
+      description: Se acepta, se rechaza o se aplaza, y por qué. Puede completarse después de abrir el issue.
+  - type: textarea
+    id: verificacion
+    attributes:
+      label: Verificación de cierre
+      description: Qué se comprobará para dar el issue por cerrado.
+    validations:
+      required: true

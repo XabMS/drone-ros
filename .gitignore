@@ -1,0 +1,11 @@
+# Artefactos de colcon (si se compila dentro del repo)
+build/
+install/
+log/
+
+# Python / editores
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+*.swp

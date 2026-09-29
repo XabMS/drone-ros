@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ws/src/drone-ros
+
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Dependencias del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libyaml-cpp-dev nlohmann-json3-dev ros-jazzy-ament-cmake-gtest python3-pytest
+
+      # px4_msgs release/1.17 se compila aparte y se cachea por commit (tarda varios minutos)
+      - name: Commit de px4_msgs release/1.17
+        id: msgs_ref
+        run: |
+          sha="$(git ls-remote https://github.com/PX4/px4_msgs.git refs/heads/release/1.17 | cut -f1)"
+          test -n "$sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Caché de px4_msgs
+        id: msgs_cache
+        uses: actions/cache@v4
+        with:
+          path: px4_msgs_ws/install
+          key: px4_msgs-${{ runner.os }}-jazzy-${{ steps.msgs_ref.outputs.sha }}
+
+      - name: Compilar px4_msgs
+        if: steps.msgs_cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch release/1.17 https://github.com/PX4/px4_msgs.git px4_msgs_ws/src/px4_msgs
+          source /opt/ros/jazzy/setup.bash
+          cd px4_msgs_ws
+          colcon build --packages-select px4_msgs --cmake-args -DCMAKE_BUILD_TYPE=Release
+        shell: bash
+
+      - name: Compilar (colcon build)
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source px4_msgs_ws/install/setup.bash
+          cd ws
+          colcon build --event-handlers console_cohesion+ --cmake-args -DCMAKE_BUILD_TYPE=Release
+        shell: bash
+
+      # drone_s1_demo no tiene tests (pytest sale con código 5 sin colectar nada), igual que en check_native.sh
+      - name: Tests (colcon test)
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source px4_msgs_ws/install/setup.bash
+          cd ws
+          colcon test --packages-select drone_core drone_mission --event-handlers console_direct+
+          colcon test-result --verbose | tee test_result.txt
+        shell: bash
+
+      - name: Comprobar 64 tests correctos
+        run: |
+          grep -E "^Summary: 64 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
