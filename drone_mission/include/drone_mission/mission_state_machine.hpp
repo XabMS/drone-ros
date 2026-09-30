@@ -39,7 +39,18 @@ enum class Result : uint8_t {
   CONTINGENCY,
 };
 
+/** Resultado de la suelta pedida a payload_manager. 1..4 coinciden con DropPayload.RESULT_*. */
+enum class DropResult : uint8_t {
+  NONE = 0,
+  RELEASED,
+  DENIED,
+  TIMEOUT,
+  NOT_RELEASED,
+  UNAVAILABLE,   ///< payload_manager rechazó el objetivo, no estaba o no respondió a tiempo
+};
+
 const char * to_string(State s);
+const char * to_string(DropResult r);
 
 /** Valores de nav_state de PX4 v1.17 (VehicleStatus.msg) que usa la máquina. */
 namespace nav
@@ -60,7 +71,9 @@ struct Params {
   double takeoff_timeout_s{60.0};
   double leg_speed_mps{3.0};         ///< Velocidad conservadora para calcular el tiempo máximo de un tramo
   double leg_timeout_margin_s{30.0};
-  double drop_wait_s{5.0};           ///< S2: suelta simulada (S3 la sustituye por payload_manager)
+  bool simulated_drop{false};        ///< true: suelta simulada de S2 (espera drop_wait_s), sin payload_manager
+  double drop_wait_s{5.0};           ///< Solo con simulated_drop
+  double drop_timeout_s{180.0};      ///< Espera máxima del resultado de la suelta (mayor que confirm_timeout_s de payload_manager)
   double command_resend_s{5.0};      ///< Reenvío de ARM, TAKEOFF y RTL si PX4 no cambia de modo
   double mode_grace_s{3.0};          ///< Tiempo tolerado con un modo inesperado tras una orden
   double setpoint_tolerance_m{5.0};      ///< Consigna de PX4 = objetivo si están a menos de esto
@@ -96,6 +109,9 @@ struct Inputs {
   bool setpoint_valid{false};        ///< Consigna actual de PX4 (position_setpoint_triplet.current)
   LatLon setpoint;
   double setpoint_alt_amsl_m{0.0};
+  bool payload_ready{false};         ///< payload_manager disponible (solo se exige sin simulated_drop)
+  bool drop_guard_ok{false};         ///< drop_guard activo y con la zona de la misión (idem)
+  DropResult drop_result{DropResult::NONE};  ///< Resultado de la suelta pedida (la limpia el nodo al pedirla)
 };
 
 enum class CommandType : uint8_t {
@@ -104,6 +120,7 @@ enum class CommandType : uint8_t {
   TAKEOFF,
   GOTO,
   RTL,
+  DROP,                   ///< Pedir la suelta a payload_manager (acción DropPayload)
 };
 
 struct Command {
@@ -136,6 +153,8 @@ public:
   State state() const {return state_;}
   State previous_state() const {return previous_;}
   Result result() const {return result_;}
+  /** Resultado de la suelta de esta misión (NONE si no se llegó a pedir o aún no hay respuesta). */
+  DropResult drop_result() const {return drop_result_;}
   const std::string & cause() const {return cause_;}
   uint32_t transition_count() const {return transitions_;}
   std::size_t waypoint_index() const {return target_index_;}
@@ -189,6 +208,12 @@ private:
   int goto_sent_count_{0};
   double goto_sent_s_{0.0};
   double sp_mismatch_since_s_{-1.0};
+
+  // Suelta con payload_manager: se pide una sola vez, cuando PX4 ya confirmó el Hold sobre la zona
+  bool drop_requested_{false};
+  bool drop_request_pending_{false};
+  double drop_requested_s_{0.0};
+  DropResult drop_result_{DropResult::NONE};
 };
 
 }  // namespace drone_mission

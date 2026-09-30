@@ -1,4 +1,4 @@
-# Parámetros de mission_manager (hito S2). Los directorios se sobrescriben desde el launch.
+# Parámetros de mission_manager (hitos S2 y S3). Los directorios se sobrescriben desde el launch.
 mission_manager:
   ros__parameters:
     acceptance_radius_m: 3.0     # llegada a un punto: distancia horizontal
@@ -7,7 +7,9 @@ mission_manager:
     takeoff_timeout_s: 60.0
     leg_speed_mps: 3.0           # velocidad conservadora para el tiempo máximo de cada tramo
     leg_timeout_margin_s: 30.0
-    drop_wait_s: 5.0             # S2: suelta simulada
+    simulated_drop: false        # true: suelta simulada de S2 (espera drop_wait_s), sin payload_manager
+    drop_wait_s: 5.0             # solo con simulated_drop
+    drop_timeout_s: 180.0        # espera máxima del resultado de la suelta (> confirm_timeout_s de payload_manager)
     command_resend_s: 5.0        # ARM, TAKEOFF y RTL
     mode_grace_s: 3.0
     setpoint_tolerance_m: 5.0    # consigna de PX4 = objetivo

@@ -13,7 +13,7 @@ Software de a bordo y de misión del dron de reparto urbano de última milla, so
 | --- | --- |
 | `drone_core/` | Librería C++ sin ROS: geodesia, geometría, configuración por ciudad, validación de misiones. Incluye `drone_validate` |
 | `drone_interfaces/` | Mensajes, servicios y acción del ICD |
-| `drone_mission/` | `MissionStateMachine` y los nodos `config_manager` y `mission_manager` |
+| `drone_mission/` | `MissionStateMachine` y los nodos `config_manager` y `mission_manager`. En DROP pide la suelta a `payload_manager`; con `simulated_drop:=true` la simula (S2) |
 | `drone_payload/` | Suelta de carga: `PayloadStateMachine` (C++ puro) y el nodo `payload_manager` (acción `DropPayload`, confirmación del piloto, sensor de carga) |
 | `drone_s1_demo/` | Demostración del hito S1: despegue, estacionario y aterrizaje |
 | `ops/` | Configuración por ciudad (YAML + GeoJSON): toulouse, donostia |
@@ -39,7 +39,7 @@ Para compilar por libre, hace falta ROS 2 Jazzy, `px4_msgs` en el workspace, `li
 
 ```bash
 colcon build --symlink-install
-colcon test --packages-select drone_core drone_mission drone_payload && colcon test-result --verbose   # 101 tests: 64 de drone_core y drone_mission + 37 de drone_payload
+colcon test --packages-select drone_core drone_mission drone_payload && colcon test-result --verbose   # 111 tests: 74 de drone_core y drone_mission + 37 de drone_payload
 ```
 
 Validar una ciudad y una misión sin arrancar nada:

@@ -36,6 +36,10 @@ public:
   bool ignore_goto{false};
   int drop_next_gotos{0};
   int gotos_received{0};
+  int drops_received{0};
+  bool payload_ready{true};
+  bool drop_guard_ok{true};
+  DropResult drop_result{DropResult::NONE};   ///< Lo fija el test para simular la respuesta de payload_manager
   double speed_mps{8.0};
   double e{0.0}, n{0.0}, h{0.0};  // posición local y altura relativa
 
@@ -73,6 +77,9 @@ public:
         tgt_e_ = 0.0;
         tgt_n_ = 0.0;
         tgt_h_ = 0.0;
+        break;
+      case CommandType::DROP:
+        ++drops_received;
         break;
       case CommandType::NONE:
         break;
@@ -133,6 +140,9 @@ public:
     in.setpoint_valid = armed;
     in.setpoint = proj_.to_global(tgt_e_, tgt_n_);
     in.setpoint_alt_amsl_m = kHomeAlt + tgt_h_;
+    in.payload_ready = payload_ready;
+    in.drop_guard_ok = drop_guard_ok;
+    in.drop_result = drop_result;
     return in;
   }
 
@@ -140,6 +150,14 @@ private:
   LocalProjection proj_;
   double tgt_e_{0.0}, tgt_n_{0.0}, tgt_h_{0.0};
 };
+
+/** Suelta simulada de S2: sin payload_manager. Los tests de S3 usan Params{} (suelta real). */
+Params sim_params()
+{
+  Params p;
+  p.simulated_drop = true;
+  return p;
+}
 
 Plan demo_plan()
 {
@@ -155,12 +173,13 @@ Plan demo_plan()
 
 /** Arnés: avanza máquina y vehículo en pasos de dt hasta que se cumple la condición o se agota el tiempo. */
 struct Harness {
-  MissionStateMachine sm{Params{}};
+  MissionStateMachine sm;
   FakeVehicle v;
   double t{0.0};
   static constexpr double kDt = 0.1;
 
-  Harness()
+  explicit Harness(const Params & params = sim_params())
+  : sm(params)
   {
     std::string msg;
     EXPECT_TRUE(sm.set_plan(demo_plan(), msg)) << msg;
@@ -235,7 +254,7 @@ TEST(MissionStateMachine, DescendsOnlyOverTheDropZone)
 
 TEST(MissionStateMachine, StartIsRejectedWithBlockers)
 {
-  MissionStateMachine sm{Params{}};
+  MissionStateMachine sm{sim_params()};
   std::string msg;
   EXPECT_FALSE(sm.request_start(msg));  // sin datos
   Inputs in;
@@ -416,7 +435,7 @@ TEST(MissionStateMachine, PlanCannotChangeInFlight)
 
 TEST(MissionStateMachine, IncompletePlanIsRejected)
 {
-  MissionStateMachine sm{Params{}};
+  MissionStateMachine sm{sim_params()};
   std::string msg;
   Plan p = demo_plan();
   p.drop_alt_m = 0.0;
@@ -553,4 +572,166 @@ TEST(MissionStateMachine, ArmedWithoutHomeTimesOut)
   hx.start();
   ASSERT_TRUE(hx.run_until_state(State::PREFLIGHT, 15.0));
   EXPECT_EQ(hx.sm.cause(), "armado pero sin home de PX4");
+}
+
+// --- Suelta con payload_manager (hito S3) --------------------------------------------------------
+
+namespace
+{
+
+Params real_drop(double drop_timeout_s = 180.0)
+{
+  Params p;
+  p.simulated_drop = false;
+  p.drop_timeout_s = drop_timeout_s;
+  return p;
+}
+
+/** Vuela hasta DROP con la suelta real y deja pasar un segundo para que se pida la suelta. */
+void fly_to_drop(Harness & hx)
+{
+  hx.start();
+  ASSERT_TRUE(hx.run_until_state(State::DROP, 200.0));
+  hx.run_until([&] {return hx.v.drops_received >= 1;}, 5.0);
+}
+
+}  // namespace
+
+TEST(MissionStateMachineDrop, StartBlockedWithoutPayloadManagerOrDropGuard)
+{
+  Harness hx(real_drop());
+  std::string msg;
+  hx.v.payload_ready = false;
+  hx.tick();
+  EXPECT_FALSE(hx.sm.request_start(msg));
+  EXPECT_NE(msg.find("payload_manager"), std::string::npos) << msg;
+
+  hx.v.payload_ready = true;
+  hx.v.drop_guard_ok = false;
+  hx.tick();
+  EXPECT_FALSE(hx.sm.request_start(msg));
+  EXPECT_NE(msg.find("drop_guard"), std::string::npos) << msg;
+
+  hx.v.drop_guard_ok = true;
+  hx.tick();
+  EXPECT_TRUE(hx.sm.request_start(msg)) << msg;
+}
+
+TEST(MissionStateMachineDrop, SimulatedDropDoesNotNeedPayloadManager)
+{
+  Harness hx;   // sim_params()
+  hx.v.payload_ready = false;
+  hx.v.drop_guard_ok = false;
+  hx.tick();
+  std::string msg;
+  EXPECT_TRUE(hx.sm.request_start(msg)) << msg;
+}
+
+TEST(MissionStateMachineDrop, WaitsForPayloadManagerAndReturnsOnRelease)
+{
+  Harness hx(real_drop());
+  fly_to_drop(hx);
+  // Se pide una sola vez y la misión espera en DROP mientras payload_manager no responde
+  EXPECT_EQ(hx.v.drops_received, 1);
+  hx.run_until([] {return false;}, 30.0);
+  EXPECT_EQ(hx.sm.state(), State::DROP);
+  EXPECT_EQ(hx.v.drops_received, 1);
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NONE);
+
+  hx.v.drop_result = DropResult::RELEASED;
+  ASSERT_TRUE(hx.run_until_state(State::RETURN, 2.0));
+  EXPECT_EQ(hx.sm.cause(), "carga liberada en la zona de suelta");
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::RELEASED);
+  ASSERT_TRUE(hx.run_until_state(State::COMPLETED, 300.0));
+  EXPECT_EQ(hx.sm.result(), Result::COMPLETED);
+}
+
+TEST(MissionStateMachineDrop, FailedDropReturnsWithPayloadButCompletes)
+{
+  for (const DropResult r : {DropResult::DENIED, DropResult::TIMEOUT, DropResult::NOT_RELEASED,
+      DropResult::UNAVAILABLE})
+  {
+    SCOPED_TRACE(to_string(r));
+    Harness hx(real_drop());
+    fly_to_drop(hx);
+    hx.v.drop_result = r;
+    ASSERT_TRUE(hx.run_until_state(State::RETURN, 2.0));
+    EXPECT_NE(hx.sm.cause().find("regreso con la carga"), std::string::npos) << hx.sm.cause();
+    EXPECT_EQ(hx.sm.drop_result(), r);
+    ASSERT_TRUE(hx.run_until_state(State::COMPLETED, 300.0));
+    EXPECT_EQ(hx.sm.result(), Result::COMPLETED);
+  }
+}
+
+TEST(MissionStateMachineDrop, NoAnswerTimesOutAndReturnsWithPayload)
+{
+  Harness hx(real_drop(20.0));
+  fly_to_drop(hx);
+  ASSERT_TRUE(hx.run_until_state(State::RETURN, 25.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::UNAVAILABLE);
+  EXPECT_NE(hx.sm.cause().find("sin resultado"), std::string::npos) << hx.sm.cause();
+}
+
+TEST(MissionStateMachineDrop, AbortDuringDropRecordsLateResult)
+{
+  Harness hx(real_drop());
+  fly_to_drop(hx);
+  std::string msg;
+  ASSERT_TRUE(hx.sm.request_abort(msg));
+  ASSERT_TRUE(hx.run_until_state(State::RETURN, 2.0));
+  EXPECT_EQ(hx.sm.cause(), "abortado por el operador");
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NONE);
+
+  // payload_manager no pudo cancelar (ya había ordenado la apertura) y responde tarde
+  hx.v.drop_result = DropResult::NOT_RELEASED;
+  ASSERT_TRUE(hx.run_until([&] {return hx.sm.drop_result() != DropResult::NONE;}, 2.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NOT_RELEASED);
+  ASSERT_TRUE(hx.run_until_state(State::COMPLETED, 300.0));
+  EXPECT_EQ(hx.sm.result(), Result::ABORTED);
+}
+
+TEST(MissionStateMachineDrop, FailsafeWhileWaitingLeadsToContingency)
+{
+  Harness hx(real_drop());
+  fly_to_drop(hx);
+  hx.v.failsafe = true;
+  ASSERT_TRUE(hx.run_until_state(State::CONTINGENCY, 2.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NONE);
+}
+
+TEST(MissionStateMachineDrop, RestartClearsPreviousDropResult)
+{
+  Harness hx(real_drop());
+  fly_to_drop(hx);
+  hx.v.drop_result = DropResult::RELEASED;
+  ASSERT_TRUE(hx.run_until_state(State::COMPLETED, 400.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::RELEASED);
+
+  hx.v.drop_result = DropResult::NONE;
+  hx.start();
+  ASSERT_TRUE(hx.run_until_state(State::ARMING, 1.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NONE);
+}
+
+TEST(MissionStateMachineDrop, ResultBeforeRequestIsIgnored)
+{
+  // Un resultado que llegue antes de pedir la suelta no cuenta. Tras pedirla, el nodo es quien limpia
+  // drop_result (mission_manager lo hace al enviar la acción), así que la máquina sí se fía de él.
+  Harness hx(real_drop());
+  hx.v.drop_result = DropResult::RELEASED;
+  hx.start();
+  ASSERT_TRUE(hx.run_until_state(State::APPROACH, 200.0));
+  EXPECT_EQ(hx.sm.drop_result(), DropResult::NONE);
+  EXPECT_NE(hx.sm.state(), State::RETURN);
+}
+
+TEST(MissionStateMachineDrop, DropResultNames)
+{
+  EXPECT_STREQ(to_string(DropResult::NONE), "NONE");
+  EXPECT_STREQ(to_string(DropResult::RELEASED), "RELEASED");
+  EXPECT_STREQ(to_string(DropResult::DENIED), "DENIED");
+  EXPECT_STREQ(to_string(DropResult::TIMEOUT), "TIMEOUT");
+  EXPECT_STREQ(to_string(DropResult::NOT_RELEASED), "NOT_RELEASED");
+  EXPECT_STREQ(to_string(DropResult::UNAVAILABLE), "UNAVAILABLE");
+  EXPECT_STREQ(to_string(static_cast<DropResult>(99)), "?");
 }

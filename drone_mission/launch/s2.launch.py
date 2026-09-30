@@ -30,6 +30,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         Node(
             package='drone_mission', executable='mission_manager', name='mission_manager', output='screen',
-            parameters=[params, {'ops_dir': ops_dir, 'missions_dir': missions_dir, 'mission_id': mission_id}],
+            parameters=[params, {'ops_dir': ops_dir, 'missions_dir': missions_dir, 'mission_id': mission_id,
+                                 'simulated_drop': True}],   # S2: sin payload_manager
         ),
     ])

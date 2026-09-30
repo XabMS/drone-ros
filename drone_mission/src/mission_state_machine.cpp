@@ -22,6 +22,38 @@ const char * to_string(State s)
   return "?";
 }
 
+const char * to_string(DropResult r)
+{
+  switch (r) {
+    case DropResult::NONE: return "NONE";
+    case DropResult::RELEASED: return "RELEASED";
+    case DropResult::DENIED: return "DENIED";
+    case DropResult::TIMEOUT: return "TIMEOUT";
+    case DropResult::NOT_RELEASED: return "NOT_RELEASED";
+    case DropResult::UNAVAILABLE: return "UNAVAILABLE";
+  }
+  return "?";
+}
+
+namespace
+{
+
+/** Motivo de la transición DROP -> RETURN según el resultado de la suelta. */
+const char * drop_cause(DropResult r)
+{
+  switch (r) {
+    case DropResult::RELEASED: return "carga liberada en la zona de suelta";
+    case DropResult::DENIED: return "suelta denegada: regreso con la carga";
+    case DropResult::TIMEOUT: return "el piloto no confirmó la suelta: regreso con la carga";
+    case DropResult::NOT_RELEASED: return "la carga no se liberó: regreso con la carga";
+    case DropResult::UNAVAILABLE:
+    case DropResult::NONE: return "sin resultado de payload_manager: regreso con la carga";
+  }
+  return "?";
+}
+
+}  // namespace
+
 MissionStateMachine::MissionStateMachine(const Params & params)
 : p_(params)
 {
@@ -56,6 +88,14 @@ std::vector<std::string> MissionStateMachine::preflight_blockers(const Inputs & 
   }
   if (!in.config_ok) {
     b.emplace_back("configuración de operación no válida o distinta de la cargada");
+  }
+  if (!p_.simulated_drop) {
+    if (!in.payload_ready) {
+      b.emplace_back("payload_manager no disponible");
+    }
+    if (!in.drop_guard_ok) {
+      b.emplace_back("drop_guard no está activo con la zona de suelta de la misión (DG_ENABLE, DG_ZONE_HASH)");
+    }
   }
   if (!in.status_valid) {
     b.emplace_back("sin estado de PX4");
@@ -290,6 +330,13 @@ Command MissionStateMachine::step(const Inputs & in)
     }
   }
 
+  // Resultado tardío de una suelta ya pedida (p. ej. tras un aborto en DROP): solo se registra.
+  if (!p_.simulated_drop && drop_requested_ && drop_result_ == DropResult::NONE &&
+    state_ != State::DROP && in.drop_result != DropResult::NONE)
+  {
+    drop_result_ = in.drop_result;
+  }
+
   // --- Lógica de cada estado --------------------------------------------------
   switch (state_) {
     case State::PREFLIGHT:
@@ -298,6 +345,9 @@ Command MissionStateMachine::step(const Inputs & in)
         start_requested_ = false;
         aborted_ = false;
         result_ = Result::NONE;
+        drop_requested_ = false;
+        drop_request_pending_ = false;
+        drop_result_ = DropResult::NONE;
         target_index_ = 0;
         transition(State::ARMING, "inicio de misión", now);
       }
@@ -354,8 +404,28 @@ Command MissionStateMachine::step(const Inputs & in)
       break;
 
     case State::DROP:
-      if (now - state_entry_s_ >= p_.drop_wait_s) {
-        transition(State::RETURN, "suelta simulada completada (S3: payload_manager)", now);
+      if (p_.simulated_drop) {
+        if (now - state_entry_s_ >= p_.drop_wait_s) {
+          transition(State::RETURN, "suelta simulada completada", now);
+        }
+        break;
+      }
+      if (!drop_requested_) {
+        // Se pide cuando PX4 ya aceptó el Hold sobre la zona (GOTO confirmado). Si no lo acepta, la
+        // vigilancia común pasa a CONTINGENCY tras los reintentos.
+        if (goto_confirmed_) {
+          drop_requested_ = true;
+          drop_request_pending_ = true;
+          drop_requested_s_ = now;
+        }
+        break;
+      }
+      if (in.drop_result != DropResult::NONE) {
+        drop_result_ = in.drop_result;
+        transition(State::RETURN, drop_cause(drop_result_), now);
+      } else if (now - drop_requested_s_ >= p_.drop_timeout_s) {
+        drop_result_ = DropResult::UNAVAILABLE;
+        transition(State::RETURN, drop_cause(drop_result_), now);
       }
       break;
 
@@ -374,6 +444,13 @@ Command MissionStateMachine::step(const Inputs & in)
   // --- Orden a enviar ---------------------------------------------------------
   if (state_ == State::CONTINGENCY || state_ == State::PREFLIGHT || state_ == State::COMPLETED) {
     return Command{};
+  }
+  if (state_ == State::DROP && drop_request_pending_) {
+    drop_request_pending_ = false;
+    last_command_s_ = now;
+    Command c;
+    c.type = CommandType::DROP;
+    return c;
   }
   if (is_goto_state()) {
     // GOTO se envía una vez por tramo y solo se repite si PX4 no lo confirma (ver vigilancia).

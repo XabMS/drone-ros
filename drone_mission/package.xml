@@ -9,6 +9,7 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
   <depend>std_srvs</depend>
   <depend>px4_msgs</depend>
   <depend>drone_interfaces</depend>
