@@ -73,6 +73,6 @@ jobs:
           colcon test-result --verbose | tee test_result.txt
         shell: bash
 
-      - name: Comprobar 101 tests correctos
+      - name: Comprobar 111 tests correctos
         run: |
-          grep -E "^Summary: 101 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
+          grep -E "^Summary: 111 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt

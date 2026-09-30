@@ -29,3 +29,11 @@ uint8 RESULT_COMPLETED = 1
 uint8 RESULT_ABORTED = 2
 uint8 RESULT_CONTINGENCY = 3
 uint8 result
+
+uint8 DROP_RESULT_NONE = 0
+uint8 DROP_RESULT_RELEASED = 1
+uint8 DROP_RESULT_DENIED = 2
+uint8 DROP_RESULT_TIMEOUT = 3
+uint8 DROP_RESULT_NOT_RELEASED = 4
+uint8 DROP_RESULT_UNAVAILABLE = 5   # payload_manager rechazó el objetivo, no estaba o no respondió a tiempo
+uint8 drop_result              # Resultado de la suelta de esta misión (NONE hasta que hay respuesta)

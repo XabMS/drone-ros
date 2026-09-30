@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(drone_interfaces REQUIRED)
@@ -27,7 +28,7 @@ target_link_libraries(config_manager drone_core::drone_core rclcpp::rclcpp
 target_compile_options(config_manager PRIVATE ${WARNINGS})
 
 add_executable(mission_manager src/mission_manager_node.cpp)
-target_link_libraries(mission_manager mission_state_machine rclcpp::rclcpp
+target_link_libraries(mission_manager mission_state_machine rclcpp::rclcpp rclcpp_action::rclcpp_action
   ${px4_msgs_TARGETS} ${drone_interfaces_TARGETS})
 target_compile_options(mission_manager PRIVATE ${WARNINGS})
 

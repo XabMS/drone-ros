@@ -5,6 +5,8 @@
 // Parámetros principales: ops_dir, missions_dir, mission_id y los de la máquina de estados.
 // Publica:   /drone/mission/state (R-01) y /fmu/in/vehicle_command.
 // Servicio:  ~/command (drone_interfaces/MissionCommand: START, ABORT).
+// Suelta:    en DROP pide la suelta a payload_manager con la acción /drone/payload/drop (R-02). Con
+//            simulated_drop:=true no la usa y espera drop_wait_s (comportamiento de S2).
 
 #include <chrono>
 #include <cmath>
@@ -14,10 +16,13 @@
 
 #include "drone_core/mission.hpp"
 #include "drone_core/ops_config.hpp"
+#include "drone_interfaces/action/drop_payload.hpp"
 #include "drone_interfaces/msg/active_config.hpp"
 #include "drone_interfaces/msg/mission_state.hpp"
+#include "drone_interfaces/msg/payload_state.hpp"
 #include "drone_interfaces/srv/mission_command.hpp"
 #include "drone_mission/mission_state_machine.hpp"
+#include "px4_msgs/msg/drop_guard_status.hpp"
 #include "px4_msgs/msg/home_position.hpp"
 #include "px4_msgs/msg/position_setpoint_triplet.hpp"
 #include "px4_msgs/msg/vehicle_command.hpp"
@@ -25,11 +30,18 @@
 #include "px4_msgs/msg/vehicle_land_detected.hpp"
 #include "px4_msgs/msg/vehicle_status.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
 using namespace std::chrono_literals;
 
 namespace drone_mission
 {
+
+using DropPayload = drone_interfaces::action::DropPayload;
+using DropGoalHandle = rclcpp_action::ClientGoalHandle<DropPayload>;
+
+/** Valores de drop_guard::Reason y del estado del módulo que interesan al prevuelo (DropGuardStatus.msg). */
+constexpr uint8_t kDropGuardReasonDisabled = 1;
 
 class MissionManager : public rclcpp::Node
 {
@@ -46,6 +58,8 @@ public:
     const auto t_home = declare_parameter<std::string>("topic_home_position", "/fmu/out/home_position_v1");
     const auto t_land = declare_parameter<std::string>("topic_land_detected", "/fmu/out/vehicle_land_detected");
     const auto t_sp = declare_parameter<std::string>("topic_setpoint_triplet", "/fmu/out/position_setpoint_triplet");
+    const auto t_dg = declare_parameter<std::string>("topic_drop_guard", "/fmu/out/drop_guard_status");
+    payload_state_timeout_s_ = declare_parameter<double>("payload_state_timeout_s", 2.0);
 
     load_mission(ops_dir, missions_dir, mission_id);
 
@@ -63,6 +77,12 @@ public:
       t_land, px4_qos, [this](const px4_msgs::msg::VehicleLandDetected & m) {landed_ = m.landed;});
     sp_sub_ = create_subscription<px4_msgs::msg::PositionSetpointTriplet>(
       t_sp, px4_qos, [this](const px4_msgs::msg::PositionSetpointTriplet & m) {sp_ = m; have_sp_ = true;});
+    dg_sub_ = create_subscription<px4_msgs::msg::DropGuardStatus>(
+      t_dg, px4_qos, [this](const px4_msgs::msg::DropGuardStatus & m) {dg_ = m; dg_rx_s_ = now_s();});
+    payload_state_sub_ = create_subscription<drone_interfaces::msg::PayloadState>(
+      "/drone/payload/state", rclcpp::QoS(1).reliable().transient_local(),
+      [this](const drone_interfaces::msg::PayloadState &) {payload_rx_s_ = now_s();});
+    drop_client_ = rclcpp_action::create_client<DropPayload>(this, "/drone/payload/drop");
     config_sub_ = create_subscription<drone_interfaces::msg::ActiveConfig>(
       "/drone/config/active", rclcpp::QoS(1).reliable().transient_local(),
       [this](const drone_interfaces::msg::ActiveConfig & m) {active_ = m; have_active_ = true;});
@@ -104,7 +124,9 @@ private:
     p.takeoff_timeout_s = declare_parameter<double>("takeoff_timeout_s", p.takeoff_timeout_s);
     p.leg_speed_mps = declare_parameter<double>("leg_speed_mps", p.leg_speed_mps);
     p.leg_timeout_margin_s = declare_parameter<double>("leg_timeout_margin_s", p.leg_timeout_margin_s);
+    p.simulated_drop = declare_parameter<bool>("simulated_drop", p.simulated_drop);
     p.drop_wait_s = declare_parameter<double>("drop_wait_s", p.drop_wait_s);
+    p.drop_timeout_s = declare_parameter<double>("drop_timeout_s", p.drop_timeout_s);
     p.command_resend_s = declare_parameter<double>("command_resend_s", p.command_resend_s);
     p.mode_grace_s = declare_parameter<double>("mode_grace_s", p.mode_grace_s);
     p.setpoint_tolerance_m = declare_parameter<double>("setpoint_tolerance_m", p.setpoint_tolerance_m);
@@ -147,6 +169,9 @@ private:
     plan.drop_alt_m = 0.5 * (v.drop_zone.alt_min_m + v.drop_zone.alt_max_m);
     std::string msg;
     if (sm_.set_plan(plan, msg)) {
+      drop_zone_id_ = v.drop_zone.id;
+      // DG_ZONE_HASH es un int32 con el CRC32 de la zona (drone_core::drop_zone_hash)
+      drop_zone_hash_ = static_cast<int32_t>(drone_core::drop_zone_hash(v.drop_zone));
       loaded_ops_hash_ = c.config.ops_hash;
       loaded_city_ = c.config.city;
       mission_id_ = plan.mission_id;
@@ -178,12 +203,60 @@ private:
     in.setpoint_valid = have_sp_ && sp_.current.valid;
     in.setpoint = LatLon{sp_.current.lat, sp_.current.lon};
     in.setpoint_alt_amsl_m = sp_.current.alt;
+    in.payload_ready = drop_client_->action_server_is_ready() && payload_rx_s_ > 0.0 &&
+      (in.now_s - payload_rx_s_ < payload_state_timeout_s_);
+    // drop_guard activo (DG_ENABLE) y con la zona de esta misión (DG_ZONE_HASH): el piloto lo verifica en prevuelo
+    in.drop_guard_ok = (dg_rx_s_ > 0.0) && (in.now_s - dg_rx_s_ < status_timeout_s_) &&
+      dg_.state != px4_msgs::msg::DropGuardStatus::STATE_ARMED_FAULT &&
+      dg_.reason != kDropGuardReasonDisabled && dg_.zone_hash == drop_zone_hash_;
+    in.drop_result = drop_result_;
     return in;
+  }
+
+  /** Pide la suelta a payload_manager. El resultado llega por drop_result_ (lo lee build_inputs). */
+  void request_drop()
+  {
+    drop_result_ = DropResult::NONE;
+    drop_cancel_sent_ = false;
+    drop_goal_.reset();
+    if (!drop_client_->action_server_is_ready()) {
+      RCLCPP_ERROR(get_logger(), "payload_manager no disponible: no se puede pedir la suelta.");
+      drop_result_ = DropResult::UNAVAILABLE;
+      return;
+    }
+    DropPayload::Goal goal;
+    goal.drop_zone_id = drop_zone_id_;
+    auto opts = rclcpp_action::Client<DropPayload>::SendGoalOptions();
+    opts.goal_response_callback = [this](const DropGoalHandle::SharedPtr & gh) {
+        if (!gh) {
+          RCLCPP_ERROR(get_logger(), "payload_manager rechazó la suelta en '%s'.", drop_zone_id_.c_str());
+          drop_result_ = DropResult::UNAVAILABLE;
+        } else {
+          drop_goal_ = gh;
+        }
+      };
+    opts.result_callback = [this](const DropGoalHandle::WrappedResult & r) {
+        drop_goal_.reset();
+        if (r.code == rclcpp_action::ResultCode::CANCELED) {
+          RCLCPP_INFO(get_logger(), "Suelta cancelada en payload_manager.");
+          return;   // la cancelamos nosotros al salir de DROP: no hay resultado que registrar
+        }
+        const uint8_t v = (r.code == rclcpp_action::ResultCode::SUCCEEDED && r.result) ? r.result->result : 0;
+        drop_result_ = (v >= 1 && v <= 4) ? static_cast<DropResult>(v) : DropResult::UNAVAILABLE;
+        RCLCPP_INFO(get_logger(), "Resultado de la suelta: %s (%s)", to_string(drop_result_),
+          r.result ? r.result->message.c_str() : "sin mensaje");
+      };
+    drop_client_->async_send_goal(goal, opts);
+    RCLCPP_INFO(get_logger(), "Suelta pedida a payload_manager en '%s'.", drop_zone_id_.c_str());
   }
 
   void send(const Command & c)
   {
     if (c.type == CommandType::NONE) {
+      return;
+    }
+    if (c.type == CommandType::DROP) {
+      request_drop();
       return;
     }
     px4_msgs::msg::VehicleCommand v{};
@@ -213,6 +286,7 @@ private:
       case CommandType::RTL:
         v.command = px4_msgs::msg::VehicleCommand::VEHICLE_CMD_NAV_RETURN_TO_LAUNCH;
         break;
+      case CommandType::DROP:
       case CommandType::NONE:
         return;
     }
@@ -230,6 +304,14 @@ private:
     const Inputs in = build_inputs();
     const uint32_t before = sm_.transition_count();
     send(sm_.step(in));
+
+    // Si la misión sale de DROP con la suelta en curso (aborto, contingencia), se pide cancelarla. Si
+    // payload_manager ya ordenó la apertura la rechazará y su resultado llegará tarde.
+    if (drop_goal_ && sm_.state() != State::DROP && !drop_cancel_sent_) {
+      drop_cancel_sent_ = true;
+      drop_client_->async_cancel_goal(drop_goal_);
+      RCLCPP_INFO(get_logger(), "Fuera de DROP: se pide cancelar la suelta.");
+    }
 
     const bool changed = sm_.transition_count() != before;
     if (changed) {
@@ -258,6 +340,7 @@ private:
     m.ready_to_start = m.preflight_blockers.empty() &&
       (sm_.state() == State::PREFLIGHT || sm_.state() == State::COMPLETED);
     m.result = static_cast<uint8_t>(sm_.result());
+    m.drop_result = static_cast<uint8_t>(sm_.drop_result());
     state_pub_->publish(m);
   }
 
@@ -279,6 +362,15 @@ private:
   bool have_sp_{false};
   drone_interfaces::msg::ActiveConfig active_{};
   bool have_active_{false};
+  px4_msgs::msg::DropGuardStatus dg_{};
+  double dg_rx_s_{0.0};
+  double payload_rx_s_{0.0};
+  double payload_state_timeout_s_{2.0};
+  std::string drop_zone_id_;
+  int32_t drop_zone_hash_{0};
+  DropResult drop_result_{DropResult::NONE};
+  DropGoalHandle::SharedPtr drop_goal_;
+  bool drop_cancel_sent_{false};
 
   rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr status_sub_;
   rclcpp::Subscription<px4_msgs::msg::VehicleGlobalPosition>::SharedPtr gpos_sub_;
@@ -286,6 +378,9 @@ private:
   rclcpp::Subscription<px4_msgs::msg::VehicleLandDetected>::SharedPtr land_sub_;
   rclcpp::Subscription<px4_msgs::msg::PositionSetpointTriplet>::SharedPtr sp_sub_;
   rclcpp::Subscription<drone_interfaces::msg::ActiveConfig>::SharedPtr config_sub_;
+  rclcpp::Subscription<px4_msgs::msg::DropGuardStatus>::SharedPtr dg_sub_;
+  rclcpp::Subscription<drone_interfaces::msg::PayloadState>::SharedPtr payload_state_sub_;
+  rclcpp_action::Client<DropPayload>::SharedPtr drop_client_;
   rclcpp::Publisher<px4_msgs::msg::VehicleCommand>::SharedPtr cmd_pub_;
   rclcpp::Publisher<drone_interfaces::msg::MissionState>::SharedPtr state_pub_;
   rclcpp::Service<drone_interfaces::srv::MissionCommand>::SharedPtr cmd_srv_;
