@@ -101,6 +101,8 @@ public:
   Outcome last_outcome() const {return last_outcome_;}
   const std::string & message() const {return message_;}
   const std::string & zone_id() const {return zone_.id;}
+  /** DG_ZONE_HASH esperado en PX4 para la zona de la suelta en curso o de la última. */
+  int32_t zone_hash() const {return zone_hash_;}
   /** true si se ha ordenado la apertura en la suelta actual o en la última terminada. */
   bool release_commanded() const {return release_commanded_;}
 

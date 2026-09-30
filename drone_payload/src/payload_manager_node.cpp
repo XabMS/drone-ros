@@ -115,7 +115,7 @@ public:
         std::string msg;
         if (goal_ && req->drop_zone_id != sm_.zone_id()) {
           res->accepted = false;
-          msg = "la zona no coincide con la suelta en curso";
+          msg = "la zona no es la de la suelta en curso";   // cabe en un STATUSTEXT con el prefijo del puente
         } else {
           res->accepted = sm_.confirm(msg);
         }
@@ -261,7 +261,8 @@ private:
         sm_.outcome() != Outcome::NONE ? ": " : "", sm_.outcome() != Outcome::NONE ? sm_.message().c_str() : "");
     }
     drive_goal();
-    if (after != before || ++publish_divider_ >= 5) {   // 2 Hz + en cada cambio
+    // 2 Hz + en cada cambio de fase (start() y cancel() cambian la fase fuera de step())
+    if (sm_.phase() != published_phase_ || ++publish_divider_ >= 5) {
       publish_divider_ = 0;
       publish_state(in);
     }
@@ -305,6 +306,10 @@ private:
       m.mechanism = drone_interfaces::msg::PayloadState::MECHANISM_CLOSED;
     }
     m.last_result = static_cast<uint8_t>(sm_.last_outcome());
+    m.phase = static_cast<uint8_t>(sm_.phase());
+    m.zone_id = sm_.zone_id();
+    m.zone_hash = sm_.zone_hash();
+    published_phase_ = sm_.phase();
     state_pub_->publish(m);
   }
 
@@ -325,6 +330,7 @@ private:
   bool have_dg_{false};
   uint32_t baseline_release_count_{0};
   int publish_divider_{0};
+  Phase published_phase_{Phase::IDLE};
 
   std::shared_ptr<GoalHandle> goal_;
 
