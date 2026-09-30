@@ -14,6 +14,7 @@ Software de a bordo y de misión del dron de reparto urbano de última milla, so
 | `drone_core/` | Librería C++ sin ROS: geodesia, geometría, configuración por ciudad, validación de misiones. Incluye `drone_validate` |
 | `drone_interfaces/` | Mensajes, servicios y acción del ICD |
 | `drone_mission/` | `MissionStateMachine` y los nodos `config_manager` y `mission_manager` |
+| `drone_payload/` | Suelta de carga: `PayloadStateMachine` (C++ puro) y el nodo `payload_manager` (acción `DropPayload`, confirmación del piloto, sensor de carga) |
 | `drone_s1_demo/` | Demostración del hito S1: despegue, estacionario y aterrizaje |
 | `ops/` | Configuración por ciudad (YAML + GeoJSON): toulouse, donostia |
 | `missions/` | Misiones de ejemplo |
@@ -27,7 +28,9 @@ Los cambios en ellos son cambios de configuración CC1.
 - [`drone-px4`](https://github.com/XabMS/drone-px4): fork de PX4 con `drop_guard`.
 - [`drone-docs`](https://github.com/XabMS/drone-docs): documentación y requisitos.
 
-`px4_msgs` (rama `release/1.17`) no se incluye: se compila aparte y se fija en `drone.repos` de `drone-sim`.
+`px4_msgs` (rama `release/1.17`) no se incluye: se compila aparte y se fija en `drone.repos` de `drone-sim`. Como esa rama no trae
+`DropGuardStatus.msg` (lo añade el fork `drone-px4`), hay que copiarlo del `msg/` del fork dentro de `px4_msgs` antes de compilar
+(`setup_native.sh` lo hace; el CI de este repo lo descarga del tag del fork).
 
 ## Compilar y probar
 
@@ -36,7 +39,7 @@ Para compilar por libre, hace falta ROS 2 Jazzy, `px4_msgs` en el workspace, `li
 
 ```bash
 colcon build --symlink-install
-colcon test --packages-select drone_core drone_mission && colcon test-result --verbose   # 64 tests: drone_core 35, drone_mission 29
+colcon test --packages-select drone_core drone_mission drone_payload && colcon test-result --verbose   # 101 tests: 64 de drone_core y drone_mission + 37 de drone_payload
 ```
 
 Validar una ciudad y una misión sin arrancar nada:
@@ -47,7 +50,7 @@ ros2 run drone_core drone_validate ops toulouse missions tls_demo_01
 
 `drone_s1_demo` no tiene tests, por eso se excluye de `colcon test`.
 
-Los paquetes se compilan con `-Werror` (`drone_core` y `drone_mission`): no debe haber avisos.
+Los paquetes se compilan con `-Werror` (`drone_core`, `drone_mission` y `drone_payload`): no debe haber avisos.
 
 ## Flujo de cambios
 

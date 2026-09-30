@@ -5,6 +5,11 @@ on:
   push:
     branches: [main]
 
+env:
+  # Tag de drone-px4 del que se toman los mensajes que px4_msgs release/1.17 no trae (DropGuardStatus).
+  # Debe coincidir con la versión fijada en drone.repos de drone-sim.
+  DRONE_PX4_REF: v1.17.0-1.0.0
+
 jobs:
   build-test:
     name: build-test
@@ -37,12 +42,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: px4_msgs_ws/install
-          key: px4_msgs-${{ runner.os }}-jazzy-${{ steps.msgs_ref.outputs.sha }}
+          key: px4_msgs-${{ runner.os }}-jazzy-${{ steps.msgs_ref.outputs.sha }}-${{ env.DRONE_PX4_REF }}
 
       - name: Compilar px4_msgs
         if: steps.msgs_cache.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch release/1.17 https://github.com/PX4/px4_msgs.git px4_msgs_ws/src/px4_msgs
+          curl -fsSL "https://raw.githubusercontent.com/XabMS/drone-px4/${DRONE_PX4_REF}/msg/DropGuardStatus.msg" \
+            -o px4_msgs_ws/src/px4_msgs/msg/DropGuardStatus.msg
           source /opt/ros/jazzy/setup.bash
           cd px4_msgs_ws
           colcon build --packages-select px4_msgs --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -62,10 +69,10 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           source px4_msgs_ws/install/setup.bash
           cd ws
-          colcon test --packages-select drone_core drone_mission --event-handlers console_direct+
+          colcon test --packages-select drone_core drone_mission drone_payload --event-handlers console_direct+
           colcon test-result --verbose | tee test_result.txt
         shell: bash
 
-      - name: Comprobar 64 tests correctos
+      - name: Comprobar 101 tests correctos
         run: |
-          grep -E "^Summary: 64 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
+          grep -E "^Summary: 101 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
