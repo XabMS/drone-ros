@@ -15,6 +15,7 @@
   <depend>drone_interfaces</depend>
   <depend>drone_core</depend>
   <exec_depend>drone_mission</exec_depend>
+  <exec_depend>drone_gcs_bridge</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <test_depend>ament_cmake_gtest</test_depend>

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drone_gcs_bridge</name>
+  <version>0.1.0</version>
+  <description>Puente con tierra (hito S3): la confirmación de suelta del piloto llega por MAVLink (ADR-006) y se reenvía a payload_manager.</description>
+  <maintainer email="64962381+XabMS@users.noreply.github.com">Xabi</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>drone_interfaces</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <!-- pymavlink no tiene clave de rosdep: se instala con pip (python3 -m pip install pymavlink) -->
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

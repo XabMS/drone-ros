@@ -20,7 +20,10 @@ def generate_launch_description() -> LaunchDescription:
     mission_id = LaunchConfiguration('mission_id')
     ops_dir = LaunchConfiguration('ops_dir')
     missions_dir = LaunchConfiguration('missions_dir')
+    mavlink_url = LaunchConfiguration('mavlink_url')
     return LaunchDescription([
+        # Enlace del companion por el que llega la confirmación del piloto (por defecto, el enlace onboard de PX4 SITL)
+        DeclareLaunchArgument('mavlink_url', default_value='udpin:0.0.0.0:14540'),
         DeclareLaunchArgument('city', default_value='toulouse'),
         DeclareLaunchArgument('mission_id', default_value='tls_demo_01'),
         DeclareLaunchArgument('ops_dir', default_value=os.environ.get('OPS_DIR', '/ops')),
@@ -36,5 +39,9 @@ def generate_launch_description() -> LaunchDescription:
         Node(
             package='drone_payload', executable='payload_manager', name='payload_manager', output='screen',
             parameters=[payload_params, {'ops_dir': ops_dir, 'city': city}],
+        ),
+        Node(
+            package='drone_gcs_bridge', executable='pilot_confirm_bridge', name='pilot_confirm_bridge',
+            output='screen', parameters=[{'mavlink_url': mavlink_url}],
         ),
     ])

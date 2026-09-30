@@ -15,6 +15,7 @@ Software de a bordo y de misión del dron de reparto urbano de última milla, so
 | `drone_interfaces/` | Mensajes, servicios y acción del ICD |
 | `drone_mission/` | `MissionStateMachine` y los nodos `config_manager` y `mission_manager`. En DROP pide la suelta a `payload_manager`; con `simulated_drop:=true` la simula (S2) |
 | `drone_payload/` | Suelta de carga: `PayloadStateMachine` (C++ puro) y el nodo `payload_manager` (acción `DropPayload`, confirmación del piloto, sensor de carga) |
+| `drone_gcs_bridge/` | Puente con tierra: la confirmación de suelta del piloto llega por MAVLink (`MAV_CMD_USER_1` al componente 191, con el hash de la zona) y se reenvía a `payload_manager`; avisa al piloto por STATUSTEXT |
 | `drone_s1_demo/` | Demostración del hito S1: despegue, estacionario y aterrizaje |
 | `ops/` | Configuración por ciudad (YAML + GeoJSON): toulouse, donostia |
 | `missions/` | Misiones de ejemplo |
@@ -35,11 +36,12 @@ Los cambios en ellos son cambios de configuración CC1.
 ## Compilar y probar
 
 Lo normal es usar el entorno de `drone-sim` (`setup_native.sh` deja este repo clonado en `ros2_ws/src/drone-ros`).
-Para compilar por libre, hace falta ROS 2 Jazzy, `px4_msgs` en el workspace, `libyaml-cpp-dev` y `nlohmann-json3-dev`:
+Para compilar por libre, hace falta ROS 2 Jazzy, `px4_msgs` en el workspace, `libyaml-cpp-dev`, `nlohmann-json3-dev` y `pymavlink`
+(`python3 -m pip install pymavlink`, sin clave de rosdep; solo para `drone_gcs_bridge`):
 
 ```bash
 colcon build --symlink-install
-colcon test --packages-select drone_core drone_mission drone_payload && colcon test-result --verbose   # 111 tests: 74 de drone_core y drone_mission + 37 de drone_payload
+colcon test --packages-select drone_core drone_mission drone_payload drone_gcs_bridge && colcon test-result --verbose   # 156 tests: 74 de drone_core y drone_mission + 37 de drone_payload + 45 de drone_gcs_bridge
 ```
 
 Validar una ciudad y una misión sin arrancar nada:

@@ -27,7 +27,9 @@ jobs:
       - name: Dependencias del sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libyaml-cpp-dev nlohmann-json3-dev ros-jazzy-ament-cmake-gtest python3-pytest
+          sudo apt-get install -y --no-install-recommends libyaml-cpp-dev nlohmann-json3-dev ros-jazzy-ament-cmake-gtest python3-pytest python3-pip
+          # drone_gcs_bridge habla MAVLink con pymavlink (no tiene clave de rosdep)
+          python3 -m pip install --break-system-packages pymavlink
 
       # px4_msgs release/1.17 se compila aparte y se cachea por commit (tarda varios minutos)
       - name: Commit de px4_msgs release/1.17
@@ -69,10 +71,10 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           source px4_msgs_ws/install/setup.bash
           cd ws
-          colcon test --packages-select drone_core drone_mission drone_payload --event-handlers console_direct+
+          colcon test --packages-select drone_core drone_mission drone_payload drone_gcs_bridge --event-handlers console_direct+
           colcon test-result --verbose | tee test_result.txt
         shell: bash
 
-      - name: Comprobar 111 tests correctos
+      - name: Comprobar 156 tests correctos
         run: |
-          grep -E "^Summary: 111 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
+          grep -E "^Summary: 156 tests, 0 errors, 0 failures, 0 skipped$" ws/test_result.txt
