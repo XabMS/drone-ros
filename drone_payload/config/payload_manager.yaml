@@ -1,0 +1,10 @@
+# Parámetros de payload_manager (hito S3). Los valores por defecto son los del código; aquí se dejan visibles.
+payload_manager:
+  ros__parameters:
+    sensor_mode: sim            # sim: la carga se deduce de drop_guard_status. GPIO real: más adelante
+    sim_stuck: false            # true = la carga no se libera aunque PX4 abra (SIM-07)
+    confirm_timeout_s: 120.0    # espera máxima de la confirmación del piloto (SIM-05)
+    ack_timeout_s: 2.0          # espera del ack de PX4 a la orden de apertura
+    verify_timeout_s: 3.0       # TBD-1 (SR-PLD-004)
+    position_timeout_s: 1.0
+    input_timeout_s: 1.0

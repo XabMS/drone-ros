@@ -1,0 +1,6 @@
+# R-04 ~/confirm (payload_manager) — confirmación de suelta del piloto (ADR-006).
+# La llama el puente MAVLink cuando llega la orden del piloto desde QGroundControl (hito S3).
+string drop_zone_id    # Zona sobre la que confirma: debe ser la de la suelta en curso
+---
+bool accepted
+string message

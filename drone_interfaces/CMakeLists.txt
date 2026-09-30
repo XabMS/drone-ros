@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/HealthStatus.msg"
   "msg/EnergyEstimate.msg"
   "srv/MissionCommand.srv"
+  "srv/ConfirmDrop.srv"
   "action/DropPayload.action"
   DEPENDENCIES builtin_interfaces
 )
